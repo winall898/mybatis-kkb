@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace：作用是为了分类管理映射文件中的MappedStatement对象 -->
+<mapper namespace="test">
+	<!-- id：指定MappedStatement对象的唯一标识 -->
+	<!-- 对象参数绑定：使用的是OGNL -->
+	<select id="findUserById" parameterType="int" resultType="com.kkb.mybatis.po.User">
+		SELECT * FROM user WHERE id = #{id}
+	</select>
+	
+	<resultMap type="user" id="testResultMap">
+		<id column="id_" property="id"/>
+		<result column="username_" property="username"/>
+		<result column="sex_" property="sex"/>
+	</resultMap>
+	
+	<select id="testResultMap" parameterType="int" resultMap="testResultMap">
+		SELECT id id_,username username_,sex sex_ FROM user WHERE id = #{id}
+	</select>
+	
+	<!-- 一对一结果类型为pojo对象 -->
+	<select id="testResultType" resultType="ordersVO">
+		SELECT
+			o.id, o.user_id userId, o.number, o.createtime, o.note, u.username,u.sex
+		FROM
+			orders o LEFT JOIN user u
+		ON o.user_id = u.id
+	</select>
+	
+	<resultMap type="ordersExt" id="testOneToOne">
+		<!-- id主键映射 -->
+		<id column="id" property="id"/>
+		<result column="user_id" property="userId"/>
+		<result column="number" property="number"/>
+		<result column="note" property="note"/>
+		<association property="user" javaType="user">
+			<id column="user_id" property="id"/>
+			<result column="username" property="username"/>
+			<result column="sex" property="sex"/>
+		</association>
+	</resultMap>
+	
+	<select id="testOneToOne" resultMap="testOneToOne" >
+		SELECT
+			o.*, u.username,u.sex
+		FROM
+			orders o LEFT JOIN user u
+		ON o.user_id = u.id
+	</select>
+	
+	
+	<resultMap type="userExt" id="testOneToMany">
+		<!-- 映射外层对象：user信息 -->
+		<id column="id" property="id"/>
+		<result column="username" property="username"/>
+		<result column="sex" property="sex"/>
+		<result column="address" property="address"/>
+		<!-- 映射嵌套对象：orders信息  （一对多） -->
+		<!-- association的类型需要使用javaType来指定 -->
+		<collection property="orders" ofType="com.kkb.mybatis.po.Orders">
+			<!-- id主键映射 -->
+			<id column="oid" property="id"/>
+			<result column="number" property="number"/>
+			<result column="note" property="note"/>
+		</collection>
+	</resultMap>
+	
+	<select id="testOneToMany" resultMap="testOneToMany">
+		SELECT
+			u.*, o.id oid,
+			o.number,
+			o.createtime,
+			o.note
+		FROM
+			`user` u
+		LEFT JOIN orders o ON u.id = o.user_id
+	</select>
+	
+	<!-- 使用if标签  -->
+	<select id="findUserList" parameterType="queryVO" resultType="user">
+		select * from user where 1=1
+		<if test="user != null">
+			<if test="user.username != null and user.username != ''">
+				and username like '%${user.username}%'
+			</if>
+		</if>
+	</select>
+	
+	<!-- 使用where标签  -->
+	<select id="findUserList1" parameterType="queryVO" resultType="user">
+		select * from user
+		<where>
+			<if test="user != null">
+				<if test="user.username != null and user.username != ''">
+					and username like '%${user.username}%'
+				</if>
+			</if>
+		</where>
+	</select>
+	
+	<!-- 使用sql片段（在映射文件中去除重复的sql代码）和foreach标签的使用  -->
+	<!-- 测试转入参数为pojo类 -->
+	<sql id="query_user_where">
+		<if test="user != null">
+			<if test="user.username != null and user.username != ''">
+				AND username like '%${user.username}%'
+			</if>
+			
+			<if test="user.sex != null and user.sex != ''">
+				AND sex = #{user.sex}
+			</if>
+		</if>
+		<if test="ids != null and ids.size() > 0">
+			<!-- collection：指定输入的集合参数的参数名称 -->
+			<!-- item：声明集合参数中的元素变量名 -->
+			<!-- open：集合遍历时，需要拼接到遍历sql语句的前面 -->
+			<!-- close：集合遍历时，需要拼接到遍历sql语句的后面 -->
+			<!-- separator：集合遍历时，需要拼接到遍历sql语句之间的分隔符号 -->
+			<!-- 使用foreach  -->
+			<foreach collection="ids" item="id" open=" AND id IN ( "
+				close=" ) " separator=",">
+				#{id}
+			</foreach>
+		</if>
+	</sql>
+	<select id="findUserList2" parameterType="queryVO" resultType="user">
+		select * from user
+		<where>
+			<include refid="query_user_where"></include>
+		</where>
+	</select>
+	
+	<!-- 测试转入参数类型为list -->
+	<sql id="query_user_list">
+		<if test="list!=null and list.size>0">
+			<foreach collection="list" item="var" open="AND id IN (" close=")" separator=",">
+				#{var}
+			</foreach>
+		</if>
+	</sql>
+	<select id="findUserList3" parameterType="list" resultType="user">
+		select * from user
+		<where>
+			<include refid="query_user_list"></include>
+		</where>
+	</select>
+</mapper>

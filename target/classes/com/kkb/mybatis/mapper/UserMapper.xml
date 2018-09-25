@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kkb.mybatis.mapper.UserMapper">
+
+	<!-- 开启com.kkb.mybatis.mapper.UserMapper命名空间下的二级缓存 -->
+	<cache></cache>
+
+	<!-- 作为延迟加载案例的从表信息查询语句 -->
+	<select id="findUserById" parameterType="java.lang.Integer" resultType="user" >
+		SELECT * FROM user WHERE id = #{id}
+	</select>
+	
+    <!-- 添加用户 -->
+	<insert id="insertUser" parameterType="com.kkb.mybatis.po.User" >
+		<selectKey resultType="java.lang.Integer" keyProperty="id" order="AFTER" >
+      		SELECT LAST_INSERT_ID()
+    	</selectKey>
+		insert into user(username,birthday,sex,address)
+		values(#{username},#{birthday},#{sex},#{address})
+	</insert>
+	
+	<!-- 延迟加载的思路： -->
+	<!-- 先查询订单信息： -->
+	<!-- 再根据[用户ID]查询用户信息： -->
+	
+	<!-- 查询订单关联用户信息使用resultmap -->
+	<resultMap type="ordersExt" id="testLazyLoading">
+		<!-- id主键映射 -->
+		<id column="id" property="id"/>
+		<result column="user_id" property="userId"/>
+		<result column="number" property="number"/>
+		<result column="note" property="note"/>
+		<!-- 一对一关联映射 -->
+		<!-- property:Orders对象的user属性 javaType：user属性对应 的类型 -->
+		<!-- select 属性：加载完主信息之后，会根据延迟加载策略，去调用select属性指定的statementID -->
+		<!-- column属性：表示将主查询结果集中指定列的结果取出来，作为参数，传递给select属性的statement中 -->
+		<association property="user" javaType="user" select="com.kkb.mybatis.mapper.UserMapper.findUserById" column="user_id"></association>
+	</resultMap>
+	
+	<select id="testLazyLoading" resultMap="testLazyLoading" >
+		SELECT * FROM orders
+	</select>
+</mapper>
